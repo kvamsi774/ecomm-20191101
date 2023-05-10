@@ -1,0 +1,130 @@
+#Average of Price by Brand
+SELECT brand, AVG(price) AS avg_price
+FROM mcs_org
+GROUP BY brand
+ORDER BY avg_price DESC;
+
+
+#Count of event_type by event_time count
+SELECT eventtype, COUNT(*) AS count
+FROM mcs_org
+WHERE eventtype IN ('purchase', 'view', 'cart')
+GROUP BY eventtype;
+
+#Max of price by category code
+SELECT categorycode, MAX(price) AS max_price
+FROM mcs_org
+GROUP BY categorycode
+ORDER BY max_price DESC;
+
+--------------------------------------------------------------------------
+WITH avg_prices AS (
+    SELECT brand, AVG(price) AS avg_price
+    FROM mcs_org
+    GROUP BY brand
+),
+max_prices AS (
+    SELECT categorycode, MAX(price) AS max_price
+    FROM mcs_org
+    GROUP BY categorycode
+)
+SELECT 
+    eventtype,
+    COUNT(*) AS count,
+    avg_prices.avg_price,
+    max_prices.max_price
+FROM mcs_org
+LEFT JOIN avg_prices ON mcs_org.brand = avg_prices.brand
+LEFT JOIN max_prices ON mcs_org.categorycode = max_prices.categorycode
+WHERE eventtype IN ('purchase', 'view', 'cart')
+GROUP BY eventtype, avg_prices.avg_price, max_prices.max_price;
+
+-----------------------------------------------------------------------------
+
+
+
+
+-----------------------------------------------------------------------------
+
+
+
+
+SELECT COUNT(DISTINCT userid) AS user_count
+FROM mcs_org
+WHERE eventtype = 'purchase' AND price > 50;
+
+
+
+
+
+
+
+SELECT COUNT(DISTINCT userid) AS user_count
+FROM mcs_org
+WHERE eventtype IN ('purchase', 'view') AND userid IN (
+    SELECT DISTINCT userid
+    FROM mcs_org
+    WHERE eventtype = 'purchase'
+        AND productid IN (
+            SELECT DISTINCT productid
+            FROM mcs_org
+            WHERE eventtype = 'view'
+        )
+);
+
+
+WITH viewed_products AS (
+  SELECT DISTINCT userid, productid
+  FROM mcs_org
+  WHERE eventtype = 'view'
+),
+purchased_products AS (
+  SELECT DISTINCT userid, productid
+  FROM mcs_org
+  WHERE eventtype = 'purchase'
+),
+viewed_purchased_products AS (
+  SELECT DISTINCT vp.userid, vp.productid
+  FROM viewed_products vp
+  JOIN purchased_products pp ON vp.userid = pp.userid AND vp.productid = pp.productid
+)
+SELECT COUNT(DISTINCT vpp.userid) * 100.0 / COUNT(DISTINCT vp.userid) AS conversion_rate
+FROM viewed_products vp
+LEFT JOIN viewed_purchased_products vpp ON vp.userid = vpp.userid AND vp.productid = vpp.productid;
+
+
+----
+#Percentage of people who purchased what they viewed
+SELECT COUNT(DISTINCT CASE WHEN p.eventtype = 'purchase' THEN p.userid END) * 100.0 / COUNT(DISTINCT CASE WHEN v.eventtype = 'view' THEN v.userid END) AS conversion_rate
+FROM mcs_org v
+LEFT JOIN mcs_org p ON v.userid = p.userid AND v.productid = p.productid AND p.eventtype = 'purchase'
+WHERE v.eventtype = 'view';
+
+
+-----
+
+
+INSERT OVERWRITE DIRECTORY '/user/palla3/ntmp/'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT eventtype, COUNT(*) AS count
+FROM mcs_org
+WHERE eventtype IN ('purchase', 'view', 'cart')
+GROUP BY eventtype;
+
+ hdfs dfs -get /user/palla3/ntmp/00000*_0
+
+
+cat 000000_0 000001_0 > excel.csv
+
+
+INSERT OVERWRITE DIRECTORY '/user/palla3/ntmp/'
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+SELECT brand, AVG(price) AS avg_price
+FROM mcs_org
+GROUP BY brand
+ORDER BY avg_price DESC; 
+
+
+
+
+=CHOOSE(RANDBETWEEN(1,5), "George", "Matt", "Ann", "Sam", "Jennifer")
